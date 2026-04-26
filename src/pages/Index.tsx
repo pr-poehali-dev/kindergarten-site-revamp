@@ -14,8 +14,6 @@ const CATEGORIES = [
   { id: "prazdniki", label: "Праздники", emoji: "🎉" },
 ];
 
-const CATEGORY_OPTIONS = CATEGORIES.filter((c) => c.id !== "all");
-
 const NAV_LINKS = ["О себе", "Занятия", "Галерея", "Достижения", "Статьи", "Контакты"];
 
 type Article = {
@@ -33,120 +31,24 @@ type Article = {
   border: string;
 };
 
-const EMPTY_FORM = {
-  category: "razvitie",
-  title: "",
-  excerpt: "",
-  fullText: "",
-  readTime: "5 мин",
-};
-
 const Index = () => {
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState("all");
   const [openArticle, setOpenArticle] = useState<Article | null>(null);
 
-  // Admin state
-  const [showAdminBtn, setShowAdminBtn] = useState(false);
-  const [showLoginModal, setShowLoginModal] = useState(false);
-  const [showFormModal, setShowFormModal] = useState(false);
-  const [password, setPassword] = useState("");
-  const [adminPassword, setAdminPassword] = useState<string | null>(null);
-  const [loginError, setLoginError] = useState("");
-  const [form, setForm] = useState(EMPTY_FORM);
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState("");
-  const [deletingId, setDeletingId] = useState<number | null>(null);
-
-  const fetchArticles = async () => {
-    try {
-      const res = await fetch(API_URL);
-      const data = await res.json();
-      setArticles(data.articles || []);
-    } catch {
-      setArticles([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchArticles();
-    // Show admin button after 3 secret clicks on logo
+    fetch(API_URL)
+      .then((r) => r.json())
+      .then((d) => setArticles(d.articles || []))
+      .catch(() => setArticles([]))
+      .finally(() => setLoading(false));
   }, []);
 
   const filtered =
     activeCategory === "all"
       ? articles
       : articles.filter((a) => a.category === activeCategory);
-
-  // --- Login ---
-  const handleLogin = async () => {
-    setLoginError("");
-    // Verify password by trying a POST with empty body — server returns 403 if wrong, 400 if right (missing fields)
-    const res = await fetch(API_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Admin-Password": password },
-      body: JSON.stringify({ title: "", excerpt: "" }),
-    });
-    if (res.status === 400 || res.status === 201) {
-      setAdminPassword(password);
-      setShowLoginModal(false);
-      setShowFormModal(true);
-      setPassword("");
-    } else {
-      setLoginError("Неверный пароль. Попробуй ещё раз.");
-    }
-  };
-
-  // --- Save article ---
-  const handleSave = async () => {
-    setSaveError("");
-    if (!form.title.trim() || !form.excerpt.trim()) {
-      setSaveError("Заполни заголовок и краткое описание.");
-      return;
-    }
-    setSaving(true);
-    const res = await fetch(API_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Admin-Password": adminPassword! },
-      body: JSON.stringify(form),
-    });
-    setSaving(false);
-    if (res.ok) {
-      setShowFormModal(false);
-      setForm(EMPTY_FORM);
-      fetchArticles();
-    } else {
-      const d = await res.json();
-      setSaveError(d.error || "Ошибка сохранения.");
-    }
-  };
-
-  // --- Delete article ---
-  const handleDelete = async (id: number) => {
-    if (!adminPassword) return;
-    setDeletingId(id);
-    await fetch(`${API_URL}?id=${id}`, {
-      method: "DELETE",
-      headers: { "X-Admin-Password": adminPassword },
-    });
-    setDeletingId(null);
-    if (openArticle?.id === id) setOpenArticle(null);
-    fetchArticles();
-  };
-
-  // Logo click counter for secret admin button
-  const [logoClicks, setLogoClicks] = useState(0);
-  const handleLogoClick = () => {
-    const next = logoClicks + 1;
-    setLogoClicks(next);
-    if (next >= 5) {
-      setShowAdminBtn(true);
-      setLogoClicks(0);
-    }
-  };
 
   const renderText = (text: string) =>
     text.split("\n\n").map((para, pi) => (
@@ -179,21 +81,9 @@ const Index = () => {
                 <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold ${openArticle.accent}`}>
                   {openArticle.emoji} {openArticle.tag}
                 </span>
-                <div className="flex items-center gap-2">
-                  {adminPassword && (
-                    <button
-                      onClick={() => handleDelete(openArticle.id)}
-                      disabled={deletingId === openArticle.id}
-                      className="text-red-400 hover:text-red-600 transition-colors"
-                      title="Удалить статью"
-                    >
-                      <Icon name="Trash2" size={18} />
-                    </button>
-                  )}
-                  <button onClick={() => setOpenArticle(null)} className="text-gray-400 hover:text-gray-600 transition-colors">
-                    <Icon name="X" size={22} />
-                  </button>
-                </div>
+                <button onClick={() => setOpenArticle(null)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                  <Icon name="X" size={22} />
+                </button>
               </div>
               <h2 className="font-bold text-gray-800 text-2xl leading-snug mb-3">{openArticle.title}</h2>
               <div className="flex items-center gap-4 text-xs text-gray-400 mb-6">
@@ -219,138 +109,10 @@ const Index = () => {
         </div>
       )}
 
-      {/* Login Modal */}
-      {showLoginModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: "rgba(0,0,0,0.45)", backdropFilter: "blur(4px)" }}
-          onClick={() => { setShowLoginModal(false); setLoginError(""); setPassword(""); }}
-        >
-          <div
-            className="bg-white rounded-3xl w-full max-w-sm p-8 shadow-2xl animate-scale-in"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="text-center mb-6">
-              <div className="text-4xl mb-2">🔑</div>
-              <h3 className="font-bold text-gray-800 text-xl">Вход для автора</h3>
-              <p className="text-gray-400 text-sm mt-1">Введи пароль чтобы добавить статью</p>
-            </div>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleLogin()}
-              placeholder="Пароль"
-              className="w-full border border-gray-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:border-pink-400 mb-3"
-              autoFocus
-            />
-            {loginError && <p className="text-red-500 text-xs mb-3">{loginError}</p>}
-            <button
-              onClick={handleLogin}
-              className="w-full py-3 rounded-2xl bg-pink-400 text-white font-bold text-sm hover:bg-pink-500 transition-colors"
-            >
-              Войти
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Add Article Modal */}
-      {showFormModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: "rgba(0,0,0,0.45)", backdropFilter: "blur(4px)" }}
-          onClick={() => setShowFormModal(false)}
-        >
-          <div
-            className="bg-white rounded-3xl w-full max-w-xl max-h-[90vh] overflow-y-auto p-8 shadow-2xl animate-scale-in"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="font-bold text-gray-800 text-xl">Новая статья</h3>
-              <button onClick={() => setShowFormModal(false)} className="text-gray-400 hover:text-gray-600">
-                <Icon name="X" size={22} />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1">Категория</label>
-                <select
-                  value={form.category}
-                  onChange={(e) => setForm({ ...form, category: e.target.value })}
-                  className="w-full border border-gray-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:border-pink-400"
-                >
-                  {CATEGORY_OPTIONS.map((c) => (
-                    <option key={c.id} value={c.id}>{c.emoji} {c.label}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1">Заголовок *</label>
-                <input
-                  type="text"
-                  value={form.title}
-                  onChange={(e) => setForm({ ...form, title: e.target.value })}
-                  placeholder="Название статьи"
-                  className="w-full border border-gray-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:border-pink-400"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1">Краткое описание *</label>
-                <textarea
-                  value={form.excerpt}
-                  onChange={(e) => setForm({ ...form, excerpt: e.target.value })}
-                  placeholder="2–3 предложения о чём статья"
-                  rows={3}
-                  className="w-full border border-gray-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:border-pink-400 resize-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1">Полный текст</label>
-                <textarea
-                  value={form.fullText}
-                  onChange={(e) => setForm({ ...form, fullText: e.target.value })}
-                  placeholder="Полный текст статьи. Можно оставить пустым — тогда будет показываться только краткое описание.
-
-Для выделения жирным используй **двойные звёздочки**."
-                  rows={10}
-                  className="w-full border border-gray-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:border-pink-400 resize-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1">Время чтения</label>
-                <input
-                  type="text"
-                  value={form.readTime}
-                  onChange={(e) => setForm({ ...form, readTime: e.target.value })}
-                  placeholder="5 мин"
-                  className="w-full border border-gray-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:border-pink-400"
-                />
-              </div>
-
-              {saveError && <p className="text-red-500 text-xs">{saveError}</p>}
-
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="w-full py-3 rounded-2xl bg-pink-400 text-white font-bold text-sm hover:bg-pink-500 transition-colors disabled:opacity-60"
-              >
-                {saving ? "Сохраняю..." : "Опубликовать статью"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Header */}
       <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md shadow-sm border-b border-pink-100">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3 cursor-pointer select-none" onClick={handleLogoClick}>
+          <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-400 to-orange-300 flex items-center justify-center text-white font-bold text-lg shadow">
               М
             </div>
@@ -359,7 +121,7 @@ const Index = () => {
               <div className="text-xs text-gray-400 font-nunito">Воспитатель детского сада</div>
             </div>
           </div>
-          <nav className="hidden md:flex gap-6 items-center">
+          <nav className="hidden md:flex gap-6">
             {NAV_LINKS.map((link) => (
               <a
                 key={link}
@@ -373,15 +135,6 @@ const Index = () => {
                 {link}
               </a>
             ))}
-            {showAdminBtn && (
-              <button
-                onClick={() => adminPassword ? setShowFormModal(true) : setShowLoginModal(true)}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-pink-400 text-white text-sm font-bold hover:bg-pink-500 transition-colors"
-              >
-                <Icon name="Plus" size={15} />
-                Добавить статью
-              </button>
-            )}
           </nav>
           <button className="md:hidden text-gray-400">
             <Icon name="Menu" size={22} />
@@ -481,7 +234,6 @@ const Index = () => {
           </div>
         )}
 
-        {/* Stats */}
         {!loading && (
           <div className="mt-12 flex flex-wrap gap-6 justify-center">
             {[
