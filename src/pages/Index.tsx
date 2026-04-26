@@ -324,7 +324,7 @@ const NAV_LINKS = ["О себе", "Занятия", "Галерея", "Дост�
 
 const Index = () => {
   const [activeCategory, setActiveCategory] = useState("all");
-  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [openArticle, setOpenArticle] = useState<typeof ARTICLES[0] | null>(null);
 
   const filtered =
     activeCategory === "all"
@@ -333,6 +333,76 @@ const Index = () => {
 
   return (
     <div className="min-h-screen font-nunito" style={{ background: "linear-gradient(135deg, #fff8f0 0%, #fef3f8 50%, #f0f8ff 100%)" }}>
+
+      {/* Article Modal */}
+      {openArticle && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-8"
+          style={{ background: "rgba(0,0,0,0.45)", backdropFilter: "blur(4px)" }}
+          onClick={() => setOpenArticle(null)}
+        >
+          <div
+            className="bg-white rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl animate-scale-in"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal header stripe */}
+            <div className={`h-2 w-full rounded-t-3xl bg-gradient-to-r ${openArticle.color}`} />
+
+            <div className="p-6 md:p-8">
+              {/* Top row */}
+              <div className="flex items-start justify-between gap-4 mb-5">
+                <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold ${openArticle.accent}`}>
+                  {openArticle.emoji} {openArticle.tag}
+                </span>
+                <button
+                  onClick={() => setOpenArticle(null)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
+                >
+                  <Icon name="X" size={22} />
+                </button>
+              </div>
+
+              {/* Title */}
+              <h2 className="font-bold text-gray-800 text-2xl leading-snug mb-3">
+                {openArticle.title}
+              </h2>
+
+              {/* Meta */}
+              <div className="flex items-center gap-4 text-xs text-gray-400 mb-6">
+                <span className="flex items-center gap-1"><Icon name="Clock" size={12} />{openArticle.readTime}</span>
+                <span>{openArticle.date}</span>
+              </div>
+
+              <hr className="border-gray-100 mb-6" />
+
+              {/* Full text */}
+              {"fullText" in openArticle && openArticle.fullText ? (
+                <div className="text-gray-600 text-[15px] leading-relaxed space-y-4">
+                  {openArticle.fullText.split("\n\n").map((para, pi) => (
+                    <p key={pi}>
+                      {para.split(/(\*\*[^*]+\*\*)/).map((part, idx) =>
+                        part.startsWith("**") && part.endsWith("**")
+                          ? <strong key={idx} className="text-gray-800 font-semibold">{part.slice(2, -2)}</strong>
+                          : part
+                      )}
+                    </p>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-500 text-sm leading-relaxed">{openArticle.excerpt}</p>
+              )}
+
+              {/* Close button */}
+              <button
+                onClick={() => setOpenArticle(null)}
+                className="mt-8 w-full py-3 rounded-2xl bg-pink-400 text-white font-bold text-sm hover:bg-pink-500 transition-colors"
+              >
+                Закрыть статью
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md shadow-sm border-b border-pink-100">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
@@ -421,7 +491,7 @@ const Index = () => {
                 key={article.id}
                 className={`bg-white rounded-3xl border ${article.border} shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden group cursor-pointer animate-fade-in`}
                 style={{ animationDelay: `${i * 60}ms` }}
-                onClick={() => setExpandedId(expandedId === article.id ? null : article.id)}
+                onClick={() => setOpenArticle(article)}
               >
                 {/* Card top gradient */}
                 <div className={`h-2 w-full bg-gradient-to-r ${article.color.replace("from-", "from-").replace("to-", "to-")}`}
@@ -451,33 +521,12 @@ const Index = () => {
                     {article.excerpt}
                   </p>
 
-                  {/* Expanded content */}
-                  {expandedId === article.id && (
-                    <div className="mt-2 pt-4 border-t border-dashed border-gray-100 animate-fade-in">
-                      {"fullText" in article && article.fullText ? (
-                        <div className="text-gray-600 text-sm leading-relaxed space-y-2">
-                          {article.fullText.split("\n\n").map((para, pi) => (
-                            <p key={pi}>
-                              {para.split(/(\*\*[^*]+\*\*)/).map((part, idx) =>
-                                part.startsWith("**") && part.endsWith("**")
-                                  ? <strong key={idx} className="text-gray-800 font-semibold">{part.slice(2, -2)}</strong>
-                                  : part
-                              )}
-                            </p>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-gray-400 text-sm italic">Полный текст скоро появится.</p>
-                      )}
-                    </div>
-                  )}
-
                   {/* Footer */}
                   <div className="flex items-center justify-between mt-2">
                     <span className="text-xs text-gray-400">{article.date}</span>
                     <button className="flex items-center gap-1 text-xs font-semibold text-pink-400 hover:text-pink-600 transition-colors">
-                      {expandedId === article.id ? "Свернуть" : "Читать"}
-                      <Icon name={expandedId === article.id ? "ChevronUp" : "ChevronRight"} size={14} />
+                      Читать
+                      <Icon name="ChevronRight" size={14} />
                     </button>
                   </div>
                 </div>
